@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shift Roster – Upload</title>
+  <script src="xlsx.full.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+    .card{background:#1e293b;border:1px solid #334155;border-radius:20px;padding:48px 40px;max-width:560px;width:100%;text-align:center}
+    .logo{font-size:3rem;margin-bottom:16px}
+    h1{font-size:1.5rem;font-weight:700;color:#38bdf8;margin-bottom:8px}
+    .sub{font-size:0.85rem;color:#64748b;margin-bottom:36px;line-height:1.6}
+    .drop-zone{border:2px dashed #334155;border-radius:14px;padding:48px 24px;transition:all .2s;background:#0f172a;display:flex;flex-direction:column;align-items:center;gap:12px}
+    .drop-zone.drag{border-color:#38bdf8;background:#071a2e}
+    .drop-zone .dz-icon{font-size:2.8rem}
+    .drop-zone h2{font-size:1rem;font-weight:700;color:#e2e8f0}
+    .drop-zone p{font-size:0.78rem;color:#64748b}
+    .status{margin-top:18px;padding:12px 16px;border-radius:8px;font-size:0.82rem;display:none;align-items:center;gap:10px;text-align:left}
+    .status.success{background:#0d2e1d;border:1px solid #166534;color:#4ade80;display:flex}
+    .status.error{background:#1a0f0f;border:1px solid #450a0a;color:#f87171;display:flex}
+    .status.loading{background:#0c1e2e;border:1px solid #0369a1;color:#38bdf8;display:flex}
+    .spinner{width:16px;height:16px;border:2px solid #0369a1;border-top-color:#38bdf8;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .format-hint{margin-top:28px;background:#0f172a;border:1px solid #1e3a5f;border-radius:10px;padding:14px 18px;text-align:left}
+    .format-hint h3{font-size:0.72rem;text-transform:uppercase;letter-spacing:.8px;color:#38bdf8;margin-bottom:10px}
+    .format-hint table{width:100%;border-collapse:collapse;font-size:0.74rem}
+    .format-hint th{color:#475569;padding:4px 8px;text-align:left;font-weight:600}
+    .format-hint td{color:#94a3b8;padding:4px 8px;border-top:1px solid #1e293b}
+    .format-hint .hi{color:#e2e8f0;font-weight:700}
+    .saved-rosters{margin-top:22px;text-align:left}
+    .saved-rosters h3{font-size:0.72rem;text-transform:uppercase;letter-spacing:.8px;color:#475569;margin-bottom:10px}
+    .saved-list{display:flex;flex-wrap:wrap;gap:8px}
+    .saved-chip{padding:5px 12px;background:#0f172a;border:1px solid #334155;border-radius:20px;font-size:0.78rem;color:#64748b;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+    .saved-chip:hover{border-color:#38bdf8;color:#38bdf8}
+    .saved-chip .del{color:#475569;font-size:0.7rem}.saved-chip .del:hover{color:#f87171}
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">&#128196;</div>
+  <h1>Shift Roster Uploader</h1>
+  <p class="sub">Upload your monthly Excel roster.<br>Data is stored in your browser and the dashboard opens automatically.</p>
+
+  <div class="drop-zone" id="dropZone"
+    ondragover="event.preventDefault();this.classList.add('drag')"
+    ondragleave="this.classList.remove('drag')"
+    ondrop="handleDrop(event)">
+    <div class="dz-icon">&#8679;</div>
+    <h2>Drop your .xlsx file here</h2>
+    <p>or use the button below &nbsp;·&nbsp; .xlsx / .xls / .csv</p>
+  </div>
+
+  <label style="display:block;margin-top:16px;width:100%;padding:12px;background:#0ea5e9;color:#fff;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:center;">
+    &#128193; Browse File
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFileInput(event)" style="display:none"/>
+  </label>
+
+  <div class="status" id="status"></div>
+
+  <div class="format-hint">
+    <h3>&#9432; Required Excel Column Format</h3>
+    <table>
+      <tr><th>Col A</th><th>Col B</th><th>Col C</th><th>Col D onwards</th></tr>
+      <tr>
+        <td class="hi">Employee Name</td>
+        <td class="hi">Timezone</td>
+        <td class="hi">Skill</td>
+        <td class="hi">01-06-2025 &nbsp;02-06-2025 …</td>
+      </tr>
+      <tr><td>Alice Roy</td><td>Asia/Kolkata</td><td>Basis</td><td>A / GEN / B / C / OFF</td></tr>
+    </table>
+    <p style="margin-top:8px;font-size:0.72rem;color:#475569">Date headers must be in <b style="color:#94a3b8">dd-mm-yyyy</b> format. Shift codes: A = Morning, GEN = General, B = Afternoon, C = Night, OFF = Day off.</p>
+  </div>
+
+  <div class="saved-rosters" id="savedSection" style="display:none">
+    <h3>&#128190; Previously Saved Rosters</h3>
+    <div class="saved-list" id="savedList"></div>
+  </div>
+</div>
+
+<script>
+const PREFIX = 'roster_';
+
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  const f=e.dataTransfer.files[0];
+  if(f) parseFile(f);
+}
+function handleFileInput(e){ const f=e.target.files[0]; if(f) parseFile(f); e.target.value=''; }
+
+function parseFile(file){
+  showStatus('loading','Reading file…');
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'array',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
+      if(rows.length<2){ showStatus('error','File needs at least 2 rows (header + data).'); return; }
+      const payload=processRows(rows,file.name);
+      if(!payload) return;
+      const key=PREFIX+payload.year+'-'+String(payload.month+1).padStart(2,'0');
+      localStorage.setItem(key,JSON.stringify(payload));
+      localStorage.setItem('shiftRosterActive',key);
+      showStatus('success','&#10003; Loaded '+payload.employees.length+' employees. Opening dashboard…');
+      setTimeout(()=>{ window.location.href='dashboard.html'; },900);
+    } catch(err){
+      showStatus('error','Failed to parse file: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function toDateKey(raw){
+  if(raw===null||raw===undefined||raw==='') return String(raw);
+  if(raw instanceof Date&&!isNaN(raw.getTime())){
+    return `${String(raw.getDate()).padStart(2,'0')}-${String(raw.getMonth()+1).padStart(2,'0')}-${raw.getFullYear()}`;
+  }
+  const s=String(raw).trim();
+  if(/^\d{2}-\d{2}-\d{4}$/.test(s)) return s;
+  const iso=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(iso) return `${iso[3]}-${iso[2]}-${iso[1]}`;
+  const slashFull=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(slashFull) return `${String(slashFull[1]).padStart(2,'0')}-${String(slashFull[2]).padStart(2,'0')}-${slashFull[3]}`;
+  const slashShort=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if(slashShort){ const yy=parseInt(slashShort[3]); const yyyy=yy+(yy>=50?1900:2000); return `${String(slashShort[1]).padStart(2,'0')}-${String(slashShort[2]).padStart(2,'0')}-${yyyy}`; }
+  if(typeof raw==='number'&&raw>1){ const d=new Date(Math.round((raw-25569)*86400*1000)); if(!isNaN(d.getTime())) return `${String(d.getUTCDate()).padStart(2,'0')}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${d.getUTCFullYear()}`; }
+  return s;
+}
+
+function processRows(rows,fileName){
+  const shiftColumns=rows[0].slice(3).map(h=>toDateKey(h));
+  const employees=[];
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];
+    const name=String(r[0]||'').trim();
+    if(!name) continue;
+    const timezone=String(r[1]||'UTC').trim();
+    const skill=String(r[2]||'').trim();
+    const shifts={};
+    shiftColumns.forEach((col,ci)=>{ shifts[col]=normalizeShift(String(r[3+ci]||'').trim()); });
+    employees.push({name,timezone,skill,shifts});
+  }
+  if(!employees.length){ showStatus('error','No employee data found in the file.'); return null; }
+  let year=new Date().getFullYear(), month=new Date().getMonth();
+  const m=shiftColumns[0]&&shiftColumns[0].match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if(m){ year=parseInt(m[3]); month=parseInt(m[2])-1; }
+  return {employees,shiftColumns,year,month,uploadedAt:new Date().toISOString(),fileName};
+}
+
+function normalizeShift(raw){
+  const u=raw.toUpperCase().replace(/\s+/g,'');
+  if(u==='A') return 'A';
+  if(u==='B') return 'B';
+  if(u==='C') return 'C';
+  if(u==='GEN'||u==='G'||u.startsWith('GEN')) return 'GEN';
+  if(u.includes('MORN')||u==='M') return 'A';
+  if(u.includes('AFT')) return 'B';
+  if(u.includes('NIGH')||u==='N') return 'C';
+  if(u==='PL'||u.startsWith('PL')) return 'PL';
+  if(u==='SL'||u.startsWith('SL')) return 'SL';
+  return 'OFF';
+}
+
+function showStatus(type,msg){
+  const el=document.getElementById('status');
+  el.className='status '+type;
+  el.innerHTML=(type==='loading'?'<div class="spinner"></div>':'')+msg;
+}
+
+function renderSaved(){
+  const keys=Object.keys(localStorage).filter(k=>k.startsWith(PREFIX)).sort().reverse();
+  const sec=document.getElementById('savedSection');
+  if(!keys.length){ sec.style.display='none'; return; }
+  sec.style.display='block';
+  document.getElementById('savedList').innerHTML=keys.map(k=>{
+    let lbl=k.replace(PREFIX,'');
+    try{ const d=JSON.parse(localStorage.getItem(k)); if(d.fileName) lbl=d.fileName+' ('+lbl+')'; }catch{}
+    return `<div class="saved-chip" onclick="loadSaved('${k}')">&#128190; ${lbl}
+      <span class="del" onclick="deleteSaved('${k}',event)">&#10005;</span></div>`;
+  }).join('');
+}
+
+function loadSaved(key){ localStorage.setItem('shiftRosterActive',key); window.location.href='dashboard.html'; }
+function deleteSaved(key,e){
+  e.stopPropagation();
+  if(!confirm('Delete '+key.replace(PREFIX,'')+' ?')) return;
+  localStorage.removeItem(key);
+  if(localStorage.getItem('shiftRosterActive')===key) localStorage.removeItem('shiftRosterActive');
+  renderSaved();
+}
+
+renderSaved();
+</script>
+</body>
+</html>

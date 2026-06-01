@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shift Roster Dashboard</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0f172a;--surface:#1e293b;--surface2:#243047;--border:#334155;
+      --text:#e2e8f0;--muted:#64748b;--subtle:#94a3b8;
+      --blue:#38bdf8;--green:#4ade80;--yellow:#facc15;--indigo:#a5b4fc;--red:#f87171;
+      --sA-bg:#1c3a2e;--sA-fg:#4ade80;--sA-br:#166534;
+      --sGEN-bg:#1a2a3a;--sGEN-fg:#38bdf8;--sGEN-br:#0369a1;
+      --sB-bg:#3a2e00;--sB-fg:#facc15;--sB-br:#713f12;
+      --sC-bg:#1e1b4b;--sC-fg:#a5b4fc;--sC-br:#3730a3;
+      --tSR-bg:#1a1a3a;--tSR-fg:#818cf8;--tSR-br:#3730a3;
+      --tOUT-bg:#3a1a1a;--tOUT-fg:#fb7185;--tOUT-br:#9f1239;
+      --tINC-bg:#3a2800;--tINC-fg:#fb923c;--tINC-br:#92400e;
+      --tHO-bg:#1a3a2a;--tHO-fg:#34d399;--tHO-br:#065f46;
+    }
+    body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+    header{background:linear-gradient(135deg,var(--surface),var(--bg));border-bottom:1px solid var(--border);padding:13px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:50}
+    header h1{font-size:1.15rem;font-weight:700;color:var(--blue)}
+    .sub-lbl{font-size:0.7rem;color:var(--muted);margin-top:2px}
+    .hdr-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .btn{padding:7px 14px;border-radius:7px;border:none;cursor:pointer;font-size:0.8rem;font-weight:600;transition:all .2s;display:inline-flex;align-items:center;gap:5px;text-decoration:none}
+    .btn-primary{background:#0ea5e9;color:#fff}.btn-primary:hover{background:var(--blue)}
+    .btn-danger{background:#7f1d1d;color:var(--red);border:1px solid #7f1d1d}.btn-danger:hover{background:#450a0a}
+    .btn-secondary{background:var(--surface);color:var(--subtle);border:1px solid var(--border)}.btn-secondary:hover{background:var(--surface2);color:var(--text)}
+    .btn-warning{background:#78350f;color:#fde68a;border:1px solid #b45309}.btn-warning:hover{background:#92400e;color:#fff}
+    .no-data{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:14px;color:var(--muted);text-align:center;padding:24px}
+    .no-data .big{font-size:3.5rem}
+    .no-data h2{font-size:1.05rem;color:var(--subtle)}
+    #dash{display:none;padding:24px 28px;flex:1;flex-direction:column;gap:20px}
+    #dash.visible{display:flex}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+    .stat{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:14px 16px}
+    .stat .lbl{font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}
+    .stat .val{font-size:1.6rem;font-weight:700;margin-top:3px}
+    .datebar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    .datebar label{font-size:0.8rem;color:var(--subtle);font-weight:600;white-space:nowrap}
+    .date-select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:8px;font-size:0.85rem;outline:none;cursor:pointer;min-width:200px}
+    .date-select:focus{border-color:var(--blue)}
+    .datebar .day-meta{font-size:0.78rem;color:var(--muted);margin-left:4px}
+    .datebar .day-meta b{color:var(--subtle)}
+    .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:auto}
+    .search-wrap{position:relative}
+    .search-wrap input{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 10px 7px 30px;border-radius:7px;font-size:0.78rem;outline:none;width:180px}
+    .search-wrap input:focus{border-color:var(--blue)}
+    .search-wrap .si{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.78rem}
+    .fsel{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:7px;font-size:0.78rem;outline:none;cursor:pointer}
+    .fsel:focus{border-color:var(--blue)}
+    .tabs-wrap{display:flex;flex-direction:column;gap:0}
+    .tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);overflow-x:auto;padding-bottom:0}
+    .tab{padding:9px 18px;font-size:0.8rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s;user-select:none}
+    .tab:hover{color:var(--subtle)}
+    .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+    .tab.tab-ovl{color:#f87171}.tab.tab-ovl:hover{color:#fca5a5}.tab.tab-ovl.active{color:#f87171;border-bottom-color:#f87171}
+    .tab.tab-off{color:#64748b}.tab.tab-off:hover{color:#94a3b8}.tab.tab-off.active{color:#94a3b8;border-bottom-color:#94a3b8}
+    .tab .cnt{display:inline-flex;align-items:center;justify-content:center;background:var(--border);color:var(--subtle);border-radius:10px;font-size:0.65rem;padding:1px 7px;margin-left:6px;min-width:20px}
+    .tab.active .cnt{background:#0369a1;color:#e0f2fe}
+    .tab.tab-ovl .cnt{background:#450a0a;color:#fca5a5}
+    .tab.tab-off .cnt{background:#1e293b;color:#64748b}
+    .absent-bar{display:none;align-items:center;gap:10px;padding:8px 16px;background:#1a1208;border-bottom:1px solid #713f12}
+    .absent-bar.visible{display:flex}
+    .absent-bar span{font-size:0.78rem;color:#fb923c}
+    .btn-absent{padding:6px 14px;background:#92400e;color:#fed7aa;border:1px solid #b45309;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;transition:all .2s}
+    .btn-absent:hover{background:#b45309;color:#fff}
+    .emp-row-item{display:grid;grid-template-columns:20px 2fr 1fr 1.2fr 1.8fr 1.4fr;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);transition:background .12s}
+    .emp-row-item:last-child{border-bottom:none}
+    .emp-row-item:hover{background:var(--surface2)}
+    .emp-row-item.selected{background:#1a1208}
+    .emp-list-hdr{display:grid;grid-template-columns:20px 2fr 1fr 1.2fr 1.8fr 1.4fr;gap:12px;padding:7px 16px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border)}
+    .row-cb{width:14px;height:14px;accent-color:#f97316;cursor:pointer;flex-shrink:0}
+    .emp-list{display:flex;flex-direction:column;padding-top:0;gap:0}
+    .emp-cell-name{display:flex;align-items:center;gap:10px;min-width:0}
+    .av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.68rem;color:#fff;flex-shrink:0}
+    .emp-name{font-size:0.84rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .emp-sub{font-size:0.68rem;color:var(--muted);margin-top:1px}
+    .emp-cell{font-size:0.78rem;color:var(--subtle)}
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:10px;font-size:0.72rem;font-weight:600;border:1px solid transparent}
+    .badge.A{background:var(--sA-bg);color:var(--sA-fg);border-color:var(--sA-br)}
+    .badge.GEN{background:var(--sGEN-bg);color:var(--sGEN-fg);border-color:var(--sGEN-br)}
+    .badge.B{background:var(--sB-bg);color:var(--sB-fg);border-color:var(--sB-br)}
+    .badge.C{background:var(--sC-bg);color:var(--sC-fg);border-color:var(--sC-br)}
+    .badge.SR{background:var(--tSR-bg);color:var(--tSR-fg);border-color:var(--tSR-br)}
+    .badge.OUT{background:var(--tOUT-bg);color:var(--tOUT-fg);border-color:var(--tOUT-br)}
+    .badge.INC{background:var(--tINC-bg);color:var(--tINC-fg);border-color:var(--tINC-br)}
+    .badge.HO{background:var(--tHO-bg);color:var(--tHO-fg);border-color:var(--tHO-br)}
+    .badge.OFF{background:#1a1a1a;color:#475569;border-color:#334155}
+    .badge.PL{background:#1a2e1a;color:#86efac;border-color:#166534}
+    .badge.SL{background:#2e1a1a;color:#fca5a5;border-color:#7f1d1d}
+    .badge.ABSENT{background:#2d1f00;color:#fb923c;border-color:#92400e}
+    .ovl-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:0.8rem}
+    .ovl-table thead tr{border-bottom:2px solid var(--border)}
+    .ovl-table th{padding:9px 14px;text-align:left;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+    .ovl-table tbody tr{border-bottom:1px solid var(--border);transition:background .12s}
+    .ovl-table tbody tr:last-child{border-bottom:none}
+    .ovl-table tbody tr:hover{background:var(--surface2)}
+    .ovl-table td{padding:11px 14px;vertical-align:middle}
+    .ovl-idx{font-size:0.72rem;color:var(--muted);font-weight:700;width:32px}
+    .ovl-emp-cell{display:flex;align-items:center;gap:9px}
+    .ovl-emp-cell .einfo .ename{font-size:0.82rem;font-weight:600;color:var(--text)}
+    .ovl-section{margin-bottom:20px}
+    .ovl-section-hdr{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:4px}
+    .ovl-section-hdr .sec-title{font-size:0.78rem;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.6px}
+    .ovl-section-hdr .sec-cnt{font-size:0.68rem;background:var(--border);color:var(--subtle);border-radius:10px;padding:1px 8px}
+    .empty-tab{padding:40px 0;text-align:center;color:var(--muted);font-size:0.82rem}
+    .saved-sec{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px}
+    .saved-sec h3{font-size:0.72rem;font-weight:700;color:var(--subtle);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+    .chip-list{display:flex;flex-wrap:wrap;gap:7px}
+    .chip{padding:4px 11px;background:#0f172a;border:1px solid var(--border);border-radius:18px;font-size:0.75rem;color:var(--subtle);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px}
+    .chip:hover{border-color:var(--blue);color:var(--blue)}
+    .chip.active{border-color:var(--blue);color:var(--blue)}
+    .chip .x{color:var(--muted);font-size:0.68rem}.chip .x:hover{color:var(--red)}
+    .toast{position:fixed;bottom:22px;right:22px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 15px;font-size:0.8rem;color:var(--text);z-index:999;transform:translateY(70px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:7px;max-width:300px}
+    .toast.show{transform:translateY(0);opacity:1}
+    .toast.success .ti{color:var(--green)}.toast.error .ti{color:var(--red)}.toast.info .ti{color:var(--blue)}
+    .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center}
+    .modal-backdrop.open{display:flex}
+    .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 28px 24px;width:360px;max-width:90vw;display:flex;flex-direction:column;gap:18px}
+    .modal h3{font-size:0.95rem;font-weight:700;color:var(--text)}
+    .modal p{font-size:0.82rem;color:var(--subtle)}
+    .modal-actions{display:flex;gap:10px}
+    .modal-actions .btn{flex:1;justify-content:center;padding:10px}
+    .modal-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:8px;font-size:0.85rem;outline:none;width:100%}
+    .modal-input:focus{border-color:var(--blue)}
+    .modal-select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:8px;font-size:0.85rem;outline:none;width:100%;cursor:pointer}
+    .modal-select:focus{border-color:var(--blue)}
+    .modal-warn{font-size:0.78rem;color:var(--yellow);background:#2d2200;border:1px solid #713f12;border-radius:7px;padding:8px 12px}
+    .modal-err{font-size:0.78rem;color:var(--red);background:#2d0000;border:1px solid #7f1d1d;border-radius:7px;padding:8px 12px;display:none}
+    .btn-lead{background:#065f46;color:#6ee7b7;border:1px solid #047857}.btn-lead:hover{background:#047857;color:#fff}
+    .lead-badge{display:inline-flex;align-items:center;gap:7px;background:#065f46;border:1px solid #047857;border-radius:8px;padding:6px 12px;font-size:0.78rem;color:#6ee7b7;font-weight:600}
+    .lead-badge .resign-link{color:#fca5a5;cursor:pointer;font-size:0.72rem;text-decoration:underline;margin-left:4px}
+    .lead-badge .resign-link:hover{color:var(--red)}
+    @media(max-width:640px){#dash{padding:14px 14px}.datebar{flex-direction:column;align-items:flex-start}.filters{margin-left:0;width:100%}}
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>&#127760; Shift Roster Dashboard</h1>
+    <div class="sub-lbl" id="rosterLabel">—</div>
+  </div>
+  <div class="hdr-right">
+    <span class="lead-badge" id="leadBadge" style="display:none">&#11088; <span id="leadBadgeName"></span><span class="resign-link" onclick="resignLead()">Resign</span></span>
+    <button class="btn btn-secondary" id="claimLeadBtn" onclick="openClaimLeadModal()" style="display:none">&#128273; Claim Lead Access</button>
+    <button class="btn btn-primary" id="assignLeadBtn" onclick="openAssignLeadModal()" style="display:none">&#11088; Assign Shift Lead</button>
+    <button class="btn btn-absent" id="absentBtn" onclick="markAbsent()" style="display:none">&#128683; Mark as Absent</button>
+    <button class="btn btn-warning" id="taskBtn" onclick="openTaskModal()" style="display:none">&#9997; Change Task Assignment</button>
+    <a href="uploader.html" class="btn btn-primary">&#8679; Upload New</a>
+    <button class="btn btn-danger" onclick="clearView()">&#128465; Clear</button>
+  </div>
+</header>
+
+<div class="no-data" id="noData">
+  <div class="big">&#128196;</div>
+  <h2>No roster loaded</h2>
+  <p style="font-size:0.8rem">Upload an Excel file to get started.</p>
+  <a href="uploader.html" class="btn btn-primary" style="margin-top:8px">&#8679; Go to Uploader</a>
+</div>
+
+<div id="dash">
+  <div class="stats" id="statsBar"></div>
+  <div class="datebar">
+    <label>&#128197; Select Date</label>
+    <select class="date-select" id="dateSelect" onchange="onDateChange()">
+      <option value="">— choose a date —</option>
+    </select>
+    <span class="day-meta" id="dayMeta"></span>
+    <div class="filters">
+      <div class="search-wrap">
+        <span class="si">&#128269;</span>
+        <input type="text" id="srch" placeholder="Search employee…" oninput="renderDay()"/>
+      </div>
+      <select class="fsel" id="fShift" onchange="renderDay()">
+        <option value="">All Shifts</option>
+        <option value="A">A – Morning</option>
+        <option value="GEN">GEN – General</option>
+        <option value="B">B – Afternoon</option>
+        <option value="C">C – Night</option>
+      </select>
+      <select class="fsel" id="fTask" onchange="renderDay()">
+        <option value="">All Tasks</option>
+        <option value="SR">Service Requests</option>
+        <option value="OUT">Outages</option>
+        <option value="INC">Incident</option>
+        <option value="HO">Handover</option>
+      </select>
+      <button class="btn btn-secondary" style="padding:6px 11px;font-size:0.75rem" onclick="resetFilters()">Reset</button>
+    </div>
+  </div>
+  <div class="tabs-wrap" id="tabsWrap" style="display:none">
+    <div class="tab-bar" id="tabBar"></div>
+    <div class="absent-bar" id="absentBar">
+      <span id="absentBarMsg">0 employee(s) selected</span>
+    </div>
+    <div id="tabContent"></div>
+  </div>
+  <div id="emptyPrompt" style="text-align:center;padding:60px 0;color:var(--muted);font-size:0.88rem">
+    &#8593; Select a date above to view the shift roster.
+  </div>
+  <div class="saved-sec">
+    <h3>&#128190; Saved Rosters</h3>
+    <div class="chip-list" id="savedList"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="assignLeadModal">
+  <div class="modal">
+    <h3>&#11088; Assign Shift Lead</h3>
+    <p id="assignLeadDesc">Select the employee who will act as Shift Lead for this date.</p>
+    <div id="assignLeadWarn" class="modal-warn" style="display:none"></div>
+    <select class="modal-select" id="assignLeadSelect"></select>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="confirmAssignLead()">&#10003; Assign</button>
+      <button class="btn btn-secondary" onclick="closeAssignLeadModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="claimLeadModal">
+  <div class="modal">
+    <h3>&#128273; Claim Shift Lead Access</h3>
+    <p id="claimLeadDesc">Type your name exactly as it appears in the roster to confirm you are the assigned Shift Lead.</p>
+    <input class="modal-input" type="text" id="claimLeadInput" placeholder="Your name…" oninput="document.getElementById('claimLeadErr').style.display='none'" onkeydown="if(event.key==='Enter')claimLeadAccess()"/>
+    <div class="modal-err" id="claimLeadErr">Name does not match the assigned Shift Lead.</div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="claimLeadAccess()">&#10003; Confirm</button>
+      <button class="btn btn-secondary" onclick="closeClaimLeadModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="taskModal">
+  <div class="modal">
+    <h3>&#9997; Change Task Assignment</h3>
+    <p>Please select the new task to be assigned to the selected employee(s).</p>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="applyTaskChange('SR')">&#128203; Service Request</button>
+      <button class="btn btn-warning" onclick="applyTaskChange('INC')">&#128680; Incident</button>
+    </div>
+    <button class="btn btn-secondary" onclick="closeTaskModal()" style="justify-content:center">Cancel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="ti" id="toastIco">&#10003;</span><span id="toastMsg"></span></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let employees=[], shiftColumns=[], activeKey=null, activeTab=null;
+let absentOverrides={};
+let taskOverrides={};
+let shiftLeadStore={};      // { [rosterKey]: { [dateKey]: employeeName } }
+let isShiftLeadSession=false; // in-memory only; resets on reload/date change
+
+const IST='Asia/Kolkata';
+const SHIFT_TIMES={
+  A:  {start:'06:00',end:'14:00',nextDay:false,tz:IST},
+  GEN:{start:'08:00',end:'17:00',nextDay:false,tz:IST},
+  B:  {start:'14:00',end:'22:00',nextDay:false,tz:IST},
+  C:  {start:'22:00',end:'06:00',nextDay:true, tz:null},
+};
+const TASK_LABELS={SR:'Service Requests',OUT:'Outages',INC:'Incident',HO:'Handover'};
+const TASK_ICONS={SR:'📋',OUT:'⚡',INC:'🚨',HO:'🤝'};
+const SHIFT_LABELS={A:'A – Morning',GEN:'GEN – General',B:'B – Afternoon',C:'C – Night',OFF:'Day Off',PL:'Paid Leave',SL:'Sick Leave',ABSENT:'Absent'};
+const SHIFT_ICONS={A:'☀️',GEN:'🏢',B:'🌍',C:'🌙',OFF:'🔘',PL:'🌿',SL:'🤒',ABSENT:'🚫'};
+const OFF_CODES=new Set(['OFF','PL','SL','ABSENT']);
+const CORE_TASKS=['SR','INC','OUT'];
+const AV_COLORS=['#0ea5e9','#a855f7','#f97316','#ec4899','#10b981','#f59e0b','#6366f1','#14b8a6','#e11d48','#84cc16'];
+
+function avColor(n){let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))%AV_COLORS.length;return AV_COLORS[h];}
+function initials(n){const p=n.trim().split(/\s+/);return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():n.slice(0,2).toUpperCase();}
+function stableHash(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))>>>0;return h;}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+(function boot(){
+  try{ absentOverrides=JSON.parse(localStorage.getItem('absentOverrides')||'{}'); }catch{ absentOverrides={}; }
+  try{ taskOverrides=JSON.parse(localStorage.getItem('taskOverrides')||'{}'); }catch{ taskOverrides={}; }
+  try{ shiftLeadStore=JSON.parse(localStorage.getItem('shiftLeadStore')||'{}'); }catch{ shiftLeadStore={}; }
+  const ak=localStorage.getItem('shiftRosterActive');
+  const keys=Object.keys(localStorage).filter(k=>k.startsWith('roster_')).sort();
+  const tryKey=ak||(keys.length?keys[keys.length-1]:null);
+  if(tryKey){
+    try{
+      const d=JSON.parse(localStorage.getItem(tryKey));
+      if(d&&d.employees){ employees=d.employees; shiftColumns=d.shiftColumns; activeKey=tryKey; showDash(); return; }
+    }catch{}
+  }
+  document.getElementById('noData').style.display='flex';
+  renderSaved();
+})();
+
+// ── Absent helpers ────────────────────────────────────────────────────────────
+function absentSet(ck){
+  if(!activeKey||!ck) return new Set();
+  return new Set((absentOverrides[activeKey]||{})[ck]||[]);
+}
+function saveAbsentOverrides(){ localStorage.setItem('absentOverrides',JSON.stringify(absentOverrides)); }
+
+// ── Task override helpers ─────────────────────────────────────────────────────
+function getTaskOverride(ck,name){ return taskOverrides[activeKey]?.[ck]?.[name]||null; }
+function saveTaskOverrides(){ localStorage.setItem('taskOverrides',JSON.stringify(taskOverrides)); }
+
+// ── Shift Lead helpers ────────────────────────────────────────────────────────
+function getShiftLead(ck){ return shiftLeadStore[activeKey]?.[ck]||null; }
+function saveShiftLeadStore(){ localStorage.setItem('shiftLeadStore',JSON.stringify(shiftLeadStore)); }
+function updateLeadUI(){
+  const ck=document.getElementById('dateSelect')?.value||'';
+  const lead=ck?getShiftLead(ck):null;
+  const dateSelected=!!ck;
+  document.getElementById('assignLeadBtn').style.display=(dateSelected&&(isShiftLeadSession||!lead))?'inline-flex':'none';
+  document.getElementById('claimLeadBtn').style.display=(dateSelected&&lead&&!isShiftLeadSession)?'inline-flex':'none';
+  const badge=document.getElementById('leadBadge');
+  if(isShiftLeadSession&&lead){
+    document.getElementById('leadBadgeName').textContent=lead;
+    badge.style.display='inline-flex';
+  } else {
+    badge.style.display='none';
+  }
+}
+
+// ── Column key lookup ─────────────────────────────────────────────────────────
+function colKey(date){
+  const dd=String(date.getDate()).padStart(2,'0');
+  const mm=String(date.getMonth()+1).padStart(2,'0');
+  const yyyy=String(date.getFullYear());
+  for(const k of [`${dd}-${mm}-${yyyy}`,`${yyyy}-${mm}-${dd}`])
+    if(shiftColumns.includes(k)) return k;
+  return null;
+}
+
+// ── UTC overlap detection ─────────────────────────────────────────────────────
+function toUTC(dateStr,timeStr,tz){
+  try{
+    const local=new Date(`${dateStr}T${timeStr}:00`);
+    const parts=new Intl.DateTimeFormat('en-US',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(local);
+    const g=t=>parts.find(p=>p.type===t)?.value;
+    return local.getTime()+(local-new Date(`${g('year')}-${g('month')}-${g('day')}T${g('hour')}:${g('minute')}:${g('second')}`));
+  }catch{return null;}
+}
+function isPST(tz){ return /PST|PDT|America\/(Los_Angeles|Vancouver|Tijuana|Santa_Isabel)/i.test(tz||''); }
+function shiftUTC(dateStr,shift,tz){
+  if(!SHIFT_TIMES[shift]) return null;
+  if((shift==='GEN'||shift==='C')&&isPST(tz)){
+    const su=toUTC(dateStr,'14:00','UTC');
+    const eu=toUTC(dateStr,'22:00','UTC');
+    return su&&eu?{start:su,end:eu}:null;
+  }
+  const s=SHIFT_TIMES[shift]; const useTZ=tz||s.tz;
+  const su=toUTC(dateStr,s.start,useTZ);
+  let ed=dateStr;
+  if(s.nextDay){const d=new Date(dateStr);d.setDate(d.getDate()+1);ed=d.toISOString().slice(0,10);}
+  const eu=toUTC(ed,s.end,useTZ);
+  return su&&eu?{start:su,end:eu}:null;
+}
+function detectOverlaps(dateStr,dayEmps){
+  const iv=dayEmps.map(e=>({name:e.name,skill:e.skill,shift:e.shiftOnDay,iv:shiftUTC(dateStr,e.shiftOnDay,e.timezone)})).filter(x=>x.iv);
+  const empMap={};
+  for(let i=0;i<iv.length;i++) for(let j=i+1;j<iv.length;j++){
+    const a=iv[i],b=iv[j];
+    if(a.skill!==b.skill) continue;
+    if(a.shift===b.shift) continue;
+    const overlapMs=Math.min(a.iv.end,b.iv.end)-Math.max(a.iv.start,b.iv.start);
+    if(overlapMs>0){
+      for(const e of [a,b]){
+        if(!empMap[e.name]) empMap[e.name]={name:e.name,skill:e.skill,shift:e.shift,overlapMs:0};
+        empMap[e.name].overlapMs+=overlapMs;
+      }
+    }
+  }
+  return Object.values(empMap);
+}
+
+// ── Date helpers ──────────────────────────────────────────────────────────────
+function parseDateKey(ck){
+  const ddmm=/^(\d{2})-(\d{2})-(\d{4})$/.exec(ck);
+  if(ddmm) return new Date(+ddmm[3],+ddmm[2]-1,+ddmm[1]);
+  const iso=/^(\d{4})-(\d{2})-(\d{2})$/.exec(ck);
+  if(iso) return new Date(+iso[1],+iso[2]-1,+iso[3]);
+  return null;
+}
+function weekNumberOf(ck){
+  const d=parseDateKey(ck); if(!d) return 0;
+  const tmp=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  tmp.setUTCDate(tmp.getUTCDate()+4-(tmp.getUTCDay()||7));
+  const yearStart=new Date(Date.UTC(tmp.getUTCFullYear(),0,1));
+  return Math.ceil((((tmp-yearStart)/86400000)+1)/7);
+}
+function prevShiftKey(ck,empName){
+  const idx=shiftColumns.indexOf(ck);
+  for(let i=idx-1;i>=0;i--){
+    const prev=shiftColumns[i];
+    const emp=employees.find(e=>e.name===empName);
+    if(!emp) break;
+    const s=emp.shifts[prev]||'OFF';
+    if(!OFF_CODES.has(s)) return prev;
+  }
+  return null;
+}
+
+// ── Task map ──────────────────────────────────────────────────────────────────
+function buildTaskMap(ck,dayEmps,_depth=0){
+  const weekNum=weekNumberOf(ck);
+  const d=parseDateKey(ck);
+  const dayOfWeek=d?d.getDay():0;
+  const byShift={};
+  for(const e of dayEmps){
+    if(!byShift[e.shiftOnDay]) byShift[e.shiftOnDay]=[];
+    byShift[e.shiftOnDay].push(e);
+  }
+  const taskMap={};
+  const ALL_TASKS=['SR','INC','OUT'];
+  for(const [shift,emps] of Object.entries(byShift)){
+    const grp=[...emps].sort((a,b)=>a.name.localeCompare(b.name));
+    grp.forEach((e)=>{
+      if(e.skill==='Basis'){
+        const override=getTaskOverride(ck,e.name);
+        if(override){ taskMap[e.name]={tasks:[override],hoFlag:false}; }
+        else{
+          let prevTask=null;
+          if(_depth===0){
+            const pck=prevShiftKey(ck,e.name);
+            if(pck){
+              const pEmps=employees.map(emp=>({...emp,shiftOnDay:emp.shifts[pck]||'OFF'})).filter(emp=>!OFF_CODES.has(emp.shiftOnDay));
+              const pMap=buildTaskMap(pck,pEmps,1);
+              prevTask=pMap[e.name]?.tasks?.[0]||null;
+            }
+          }
+          const base=(stableHash(e.name)+weekNum+dayOfWeek)%ALL_TASKS.length;
+          let assigned=ALL_TASKS[base];
+          if(assigned===prevTask) assigned=ALL_TASKS[(base+1)%ALL_TASKS.length];
+          taskMap[e.name]={tasks:[assigned],hoFlag:false};
+        }
+      } else {
+        taskMap[e.name]={tasks:[],hoFlag:false};
+      }
+    });
+    const basisGrp=grp.filter(e=>e.skill==='Basis');
+    if(basisGrp.length){
+      const hoIdx=(weekNum+dayOfWeek+stableHash(shift))%basisGrp.length;
+      taskMap[basisGrp[hoIdx].name].hoFlag=true;
+    }
+  }
+  return taskMap;
+}
+
+// ── Date dropdown ─────────────────────────────────────────────────────────────
+function populateDateSelect(){
+  const sel=document.getElementById('dateSelect');
+  const opts=shiftColumns.map(ck=>{ const d=parseDateKey(ck); return {ck,label:d?d.toLocaleDateString('en-US',{weekday:'short',day:'numeric',month:'short',year:'numeric'}):ck}; });
+  sel.innerHTML='<option value="">— choose a date —</option>'+opts.map(o=>`<option value="${o.ck}">${o.label}</option>`).join('');
+  const todayCK=colKey(new Date());
+  if(todayCK) sel.value=todayCK;
+  else if(opts.length) sel.value=opts[0].ck;
+}
+function onDateChange(){ isShiftLeadSession=false; activeTab=null; renderDay(); }
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function renderDay(){
+  const ck=document.getElementById('dateSelect').value;
+  const emptyPrompt=document.getElementById('emptyPrompt');
+  const tabsWrap=document.getElementById('tabsWrap');
+  if(!ck){ emptyPrompt.style.display='block'; tabsWrap.style.display='none'; document.getElementById('dayMeta').innerHTML=''; updateAbsentBtn([]); updateLeadUI(); return; }
+  emptyPrompt.style.display='none';
+  const d=parseDateKey(ck);
+  document.getElementById('dayMeta').innerHTML=`<b>${d?d.toLocaleDateString('en-US',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):''}</b>`;
+  let dateStr=ck;
+  if(d) dateStr=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const srch=document.getElementById('srch').value.toLowerCase();
+  const fShift=document.getElementById('fShift').value;
+  const fTask=document.getElementById('fTask').value;
+  const absents=absentSet(ck);
+  const allEnriched=employees.map(e=>({...e,shiftOnDay:absents.has(e.name)?'ABSENT':(e.shifts[ck]||'OFF')}));
+  const dayEmps=allEnriched.filter(e=>!OFF_CODES.has(e.shiftOnDay));
+  const offEmps=allEnriched.filter(e=>OFF_CODES.has(e.shiftOnDay));
+  const taskMap=buildTaskMap(ck,dayEmps);
+  const dayEmpsWithTask=dayEmps.map(e=>({...e,tasks:taskMap[e.name]?.tasks||[],hoFlag:taskMap[e.name]?.hoFlag||false}));
+  const offEmpsWithTask=offEmps.map(e=>({...e,tasks:[],hoFlag:false}));
+  const filteredDay=dayEmpsWithTask.filter(e=>(!srch||e.name.toLowerCase().includes(srch))&&(!fShift||e.shiftOnDay===fShift)&&(!fTask||(fTask==='HO'?e.hoFlag:e.tasks.includes(fTask))));
+  const filteredOff=offEmpsWithTask.filter(e=>(!srch||e.name.toLowerCase().includes(srch)));
+  const ovls=detectOverlaps(dateStr,filteredDay);
+  updateStats(ck,dateStr,ovls,dayEmpsWithTask.length,offEmpsWithTask.length);
+  renderSkillTabs(filteredDay,filteredOff,ck,ovls);
+  updateLeadUI();
+}
+
+// ── Skill tabs ────────────────────────────────────────────────────────────────
+function renderSkillTabs(dayEmps,offEmps,ck,ovls){
+  const tabsWrap=document.getElementById('tabsWrap');
+  const tabBar=document.getElementById('tabBar');
+  const tabContent=document.getElementById('tabContent');
+  tabsWrap.style.display='block';
+  const skills=[...new Set(dayEmps.map(e=>e.skill))].sort();
+  const ALL='__ALL__',OVL='__OVL__',OFF_TAB='__OFF__';
+  const tabs=[
+    {id:ALL,label:'All',emps:dayEmps,cls:''},
+    ...skills.map(sk=>({id:sk,label:sk,emps:dayEmps.filter(e=>e.skill===sk),cls:''})),
+    {id:OFF_TAB,label:'&#128683; OFF',emps:offEmps,cls:' tab-off'},
+    ...(ovls.length?[{id:OVL,label:'&#9888; Overlaps',emps:null,ovls,cls:' tab-ovl'}]:[])
+  ];
+  if(!activeTab||!tabs.find(t=>t.id===activeTab)) activeTab=ALL;
+  tabBar.innerHTML=tabs.map(t=>`<div class="tab${t.id===activeTab?' active':''}${t.cls}" onclick="setTab('${t.id}')">${t.label}<span class="cnt">${t.id===OVL?t.ovls.length:t.emps.length}</span></div>`).join('');
+  const cur=tabs.find(t=>t.id===activeTab)||tabs[0];
+  if(cur.id===OVL){ updateAbsentBtn([]); tabContent.innerHTML=renderOverlapTable(cur.ovls); }
+  else if(cur.id===OFF_TAB){ updateAbsentBtn([]); tabContent.innerHTML=offEmps.length?renderEmpList(offEmps,ck,false):'<div class="empty-tab">No employees are off on this date.</div>'; }
+  else{ tabContent.innerHTML=cur.emps.length?renderEmpList(cur.emps,ck,true):'<div class="empty-tab">No employees match the current filters.</div>'; updateAbsentBtn([]); }
+}
+function setTab(id){ activeTab=id; renderDay(); }
+
+// ── Employee list ─────────────────────────────────────────────────────────────
+function renderEmpList(emps,ck,showCheckbox){
+  const canEdit=showCheckbox&&isShiftLeadSession;
+  return `<div class="emp-list"><div class="emp-list-hdr"><div></div><div>Employee</div><div>Timezone</div><div>Shift</div><div>Task</div><div>Shift Hours</div></div>${emps.map(e=>empRow(e,ck,canEdit)).join('')}</div>`;
+}
+function empRow(e,ck,showCheckbox){
+  const shiftTime={A:'06:00 – 14:00 IST',GEN:'08:00 – 17:00 IST',B:'14:00 – 22:00 IST',C:'22:00 – 06:00 (local)'}[e.shiftOnDay]||'—';
+  const cb=showCheckbox?`<input type="checkbox" class="row-cb" data-name="${e.name}" data-ck="${ck}" onchange="onRowCheck(this)">`:`<span></span>`;
+  return `<div class="emp-row-item" id="row-${CSS.escape(e.name)}">${cb}
+    <div class="emp-cell-name"><div class="av" style="background:${avColor(e.name)}">${initials(e.name)}</div><div><div class="emp-name">${e.name}</div><div class="emp-sub">${e.skill}</div></div></div>
+    <div class="emp-cell">${e.timezone}</div>
+    <div class="emp-cell"><span class="badge ${e.shiftOnDay}">${SHIFT_ICONS[e.shiftOnDay]||''} ${SHIFT_LABELS[e.shiftOnDay]||e.shiftOnDay}</span></div>
+    <div class="emp-cell">${showCheckbox
+      ?e.skill==='Basis'
+        ?`${e.tasks.map(t=>`<span class="badge ${t}">${TASK_ICONS[t]} ${TASK_LABELS[t]}</span>`).join(' ')}${e.hoFlag?` <span class="badge HO">${TASK_ICONS.HO} ${TASK_LABELS.HO}</span>`:''}`
+        :`${e.hoFlag?`<span class="badge HO">${TASK_ICONS.HO} ${TASK_LABELS.HO}</span>`:'—'}`
+      :'—'}</div>
+    <div class="emp-cell" style="font-size:0.75rem">${showCheckbox?'&#128336; '+shiftTime:'—'}</div>
+  </div>`;
+}
+
+// ── Checkbox + buttons ────────────────────────────────────────────────────────
+function onRowCheck(cb){
+  cb.closest('.emp-row-item').classList.toggle('selected',cb.checked);
+  updateAbsentBtn([...document.querySelectorAll('.row-cb:checked')]);
+}
+function updateAbsentBtn(checked){
+  const show=checked.length>0&&isShiftLeadSession;
+  document.getElementById('absentBtn').style.display=show?'inline-flex':'none';
+  document.getElementById('taskBtn').style.display=show?'inline-flex':'none';
+  document.getElementById('absentBar').classList.toggle('visible',show);
+  if(show) document.getElementById('absentBarMsg').textContent=`${checked.length} employee(s) selected`;
+}
+function markAbsent(){
+  const checked=[...document.querySelectorAll('.row-cb:checked')];
+  if(!checked.length||!activeKey) return;
+  const ck=checked[0].dataset.ck;
+  if(!absentOverrides[activeKey]) absentOverrides[activeKey]={};
+  if(!absentOverrides[activeKey][ck]) absentOverrides[activeKey][ck]=[];
+  const existing=new Set(absentOverrides[activeKey][ck]);
+  checked.forEach(cb=>existing.add(cb.dataset.name));
+  absentOverrides[activeKey][ck]=[...existing];
+  saveAbsentOverrides();
+  showToast(`${checked.length} employee(s) marked absent.`,'info');
+  renderDay();
+}
+
+// ── Assign Shift Lead modal ───────────────────────────────────────────────────
+let _assignLeadDayEmps=[];
+function openAssignLeadModal(){
+  const ck=document.getElementById('dateSelect').value;
+  if(!ck||!activeKey) return;
+  const absents=absentSet(ck);
+  const allEnriched=employees.map(e=>({...e,shiftOnDay:absents.has(e.name)?'ABSENT':(e.shifts[ck]||'OFF')}));
+  _assignLeadDayEmps=allEnriched.filter(e=>!OFF_CODES.has(e.shiftOnDay));
+  const sel=document.getElementById('assignLeadSelect');
+  sel.innerHTML=_assignLeadDayEmps.map(e=>`<option value="${e.name}">${e.name} (${e.shiftOnDay})</option>`).join('');
+  const existing=getShiftLead(ck);
+  const warn=document.getElementById('assignLeadWarn');
+  if(existing){
+    warn.textContent=`⚠ ${existing} is currently assigned as Shift Lead. Assigning a new person will replace them.`;
+    warn.style.display='block';
+    const opt=sel.querySelector(`option[value="${existing}"]`);
+    if(opt) sel.value=existing;
+  } else {
+    warn.style.display='none';
+  }
+  document.getElementById('assignLeadDesc').textContent=`Select the employee who will act as Shift Lead for ${ck}.`;
+  document.getElementById('assignLeadModal').classList.add('open');
+}
+function closeAssignLeadModal(){ document.getElementById('assignLeadModal').classList.remove('open'); }
+function confirmAssignLead(){
+  const ck=document.getElementById('dateSelect').value;
+  const name=document.getElementById('assignLeadSelect').value;
+  if(!ck||!name||!activeKey) return;
+  if(!shiftLeadStore[activeKey]) shiftLeadStore[activeKey]={};
+  shiftLeadStore[activeKey][ck]=name;
+  saveShiftLeadStore();
+  closeAssignLeadModal();
+  showToast(`${name} assigned as Shift Lead.`,'success');
+  updateLeadUI();
+}
+
+// ── Claim Lead Access modal ───────────────────────────────────────────────────
+function openClaimLeadModal(){
+  const ck=document.getElementById('dateSelect').value;
+  if(!ck) return;
+  const lead=getShiftLead(ck);
+  if(!lead) return;
+  const d=parseDateKey(ck);
+  const dateLabel=d?d.toLocaleDateString('en-US',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):ck;
+  document.getElementById('claimLeadDesc').textContent=`Type your name exactly as it appears in the roster to confirm you are the Shift Lead for ${dateLabel}.`;
+  document.getElementById('claimLeadInput').value='';
+  document.getElementById('claimLeadErr').style.display='none';
+  document.getElementById('claimLeadModal').classList.add('open');
+  setTimeout(()=>document.getElementById('claimLeadInput').focus(),100);
+}
+function closeClaimLeadModal(){ document.getElementById('claimLeadModal').classList.remove('open'); }
+function claimLeadAccess(){
+  const ck=document.getElementById('dateSelect').value;
+  const lead=getShiftLead(ck);
+  const input=document.getElementById('claimLeadInput').value.trim();
+  if(!lead) return;
+  if(input.toLowerCase()===lead.toLowerCase()){
+    isShiftLeadSession=true;
+    closeClaimLeadModal();
+    showToast(`Shift Lead access granted. Welcome, ${lead}!`,'success');
+    updateLeadUI();
+    renderDay();
+  } else {
+    document.getElementById('claimLeadErr').style.display='block';
+  }
+}
+function resignLead(){
+  isShiftLeadSession=false;
+  updateAbsentBtn([]);
+  updateLeadUI();
+  renderDay();
+  showToast('Shift Lead session ended.','info');
+}
+
+// ── Task modal ────────────────────────────────────────────────────────────────
+function openTaskModal(){ if(document.querySelectorAll('.row-cb:checked').length) document.getElementById('taskModal').classList.add('open'); }
+function closeTaskModal(){ document.getElementById('taskModal').classList.remove('open'); }
+function applyTaskChange(newTask){
+  closeTaskModal();
+  const checked=[...document.querySelectorAll('.row-cb:checked')];
+  if(!checked.length||!activeKey) return;
+  const ck=checked[0].dataset.ck;
+  if(!taskOverrides[activeKey]) taskOverrides[activeKey]={};
+  if(!taskOverrides[activeKey][ck]) taskOverrides[activeKey][ck]={};
+  let changed=0;
+  checked.forEach(cb=>{ const name=cb.dataset.name; if(taskOverrides[activeKey][ck][name]!==newTask){taskOverrides[activeKey][ck][name]=newTask;changed++;} });
+  saveTaskOverrides();
+  showToast(changed>0?'Task assignment changed.':'No changes done.',changed>0?'success':'info');
+  renderDay();
+}
+
+// ── Overlap table ─────────────────────────────────────────────────────────────
+const OVL_SECTIONS=['Basis','SM','Database'];
+function renderOverlapTable(ovls){
+  return OVL_SECTIONS.map(sec=>{
+    const group=ovls.filter(o=>o.skill===sec);
+    return `<div class="ovl-section">
+      <div class="ovl-section-hdr"><span class="sec-title">${sec}</span><span class="sec-cnt">${group.length} overlapping</span></div>
+      ${group.length===0?`<div class="empty-tab" style="padding:16px 0">No overlaps in this group.</div>`
+        :`<table class="ovl-table"><thead><tr><th class="ovl-idx">#</th><th>Employee</th><th>Shift</th></tr></thead><tbody>
+          ${group.map((o,i)=>`<tr><td class="ovl-idx">${i+1}</td><td><div class="ovl-emp-cell"><div class="av" style="background:${avColor(o.name)}">${initials(o.name)}</div><div class="einfo"><div class="ename">${o.name}</div></div></div></td><td><span class="badge ${o.shift}">${SHIFT_ICONS[o.shift]} ${SHIFT_LABELS[o.shift]}</span></td></tr>`).join('')}
+          </tbody></table>`}
+    </div>`;
+  }).join('');
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function updateStats(ck,dateStr,ovls,onShiftCount,offCount){
+  const skills=new Set(employees.filter(e=>{const s=e.shifts[ck];return s&&!OFF_CODES.has(s);}).map(e=>e.skill)).size;
+  const tzs=new Set(employees.filter(e=>{const s=e.shifts[ck];return s&&!OFF_CODES.has(s);}).map(e=>e.timezone)).size;
+  document.getElementById('statsBar').innerHTML=`
+    <div class="stat"><div class="lbl">Total Employees</div><div class="val" style="color:var(--blue)">${employees.length}</div></div>
+    <div class="stat"><div class="lbl">On Shift</div><div class="val" style="color:var(--green)">${onShiftCount}</div></div>
+    <div class="stat"><div class="lbl">OFF / Leave</div><div class="val" style="color:var(--muted)">${offCount}</div></div>
+    <div class="stat"><div class="lbl">Shift Overlaps</div><div class="val" style="color:var(--red)">${ovls.length}</div></div>
+    <div class="stat"><div class="lbl">Skills Active</div><div class="val" style="color:var(--yellow)">${skills}</div></div>
+    <div class="stat"><div class="lbl">Timezones</div><div class="val" style="color:var(--indigo)">${tzs}</div></div>`;
+}
+
+// ── Saved rosters ─────────────────────────────────────────────────────────────
+function renderSaved(){
+  const keys=Object.keys(localStorage).filter(k=>k.startsWith('roster_')).sort().reverse();
+  const list=document.getElementById('savedList');
+  if(!list) return;
+  if(!keys.length){ list.innerHTML='<span style="color:var(--muted);font-size:0.75rem">No saved rosters.</span>'; return; }
+  list.innerHTML=keys.map(k=>{
+    let lbl=k.replace('roster_','');
+    try{ const d=JSON.parse(localStorage.getItem(k)); if(d.fileName) lbl=d.fileName+' ('+lbl+')'; }catch{}
+    return `<div class="chip${k===activeKey?' active':''}" onclick="switchRoster('${k}')">&#128190; ${lbl}<span class="x" onclick="delRoster('${k}',event)">&#10005;</span></div>`;
+  }).join('');
+}
+function switchRoster(key){
+  try{
+    const d=JSON.parse(localStorage.getItem(key));
+    if(!d||!d.employees){ showToast('Roster not found.','error'); return; }
+    employees=d.employees; shiftColumns=d.shiftColumns; activeKey=key; activeTab=null;
+    localStorage.setItem('shiftRosterActive',key);
+    showDash(); showToast('Loaded '+key.replace('roster_',''),'info');
+  }catch{ showToast('Failed to load.','error'); }
+}
+function delRoster(key,e){
+  e.stopPropagation();
+  if(!confirm('Delete '+key.replace('roster_','')+' ?')) return;
+  localStorage.removeItem(key);
+  if(key===activeKey){ localStorage.removeItem('shiftRosterActive'); activeKey=null; employees=[]; shiftColumns=[]; document.getElementById('dash').classList.remove('visible'); document.getElementById('noData').style.display='flex'; renderSaved(); return; }
+  renderSaved(); showToast('Deleted.','info');
+}
+
+// ── Show dashboard ────────────────────────────────────────────────────────────
+function showDash(){
+  document.getElementById('noData').style.display='none';
+  document.getElementById('dash').classList.add('visible');
+  try{ const d=JSON.parse(localStorage.getItem(activeKey)); document.getElementById('rosterLabel').textContent=(d.fileName||activeKey)+' · uploaded '+new Date(d.uploadedAt).toLocaleDateString(); }catch{}
+  document.getElementById('statsBar').innerHTML=`
+    <div class="stat"><div class="lbl">Total Employees</div><div class="val" style="color:var(--blue)">${employees.length}</div></div>
+    <div class="stat"><div class="lbl">On Shift Today</div><div class="val" style="color:var(--green)">—</div></div>
+    <div class="stat"><div class="lbl">OFF / Leave</div><div class="val" style="color:var(--muted)">—</div></div>
+    <div class="stat"><div class="lbl">Shift Overlaps</div><div class="val" style="color:var(--red)">—</div></div>
+    <div class="stat"><div class="lbl">Skills Active</div><div class="val" style="color:var(--yellow)">—</div></div>
+    <div class="stat"><div class="lbl">Timezones</div><div class="val" style="color:var(--indigo)">—</div></div>`;
+  populateDateSelect();
+  renderSaved();
+  if(document.getElementById('dateSelect').value) renderDay();
+}
+function clearView(){
+  if(!confirm('Clear current view? Saved data is kept.')) return;
+  employees=[]; shiftColumns=[]; activeKey=null; activeTab=null;
+  localStorage.removeItem('shiftRosterActive');
+  document.getElementById('dash').classList.remove('visible');
+  document.getElementById('noData').style.display='flex';
+  renderSaved(); showToast('Cleared.','info');
+}
+function resetFilters(){ document.getElementById('srch').value=''; document.getElementById('fShift').value=''; document.getElementById('fTask').value=''; renderDay(); }
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.className='toast '+type;
+  document.getElementById('toastIco').innerHTML={success:'&#10003;',error:'&#9888;',info:'&#8505;'}[type]||'&#10003;';
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+</script>
+</body>
+</html>
