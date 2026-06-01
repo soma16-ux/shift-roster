@@ -41,7 +41,7 @@
 <div class="card">
   <div class="logo">&#128196;</div>
   <h1>Shift Roster Uploader</h1>
-  <p class="sub">Upload your monthly Excel roster.<br>Data is stored in your browser and the dashboard opens automatically.</p>
+  <p class="sub">Upload your monthly Excel roster.<br>Data is pushed to GitHub and the dashboard opens automatically for your whole team.</p>
 
   <div class="drop-zone" id="dropZone"
     ondragover="event.preventDefault();this.classList.add('drag')"
@@ -58,6 +58,10 @@
   </label>
 
   <div class="status" id="status"></div>
+
+  <button onclick="testGitHub()" style="margin-top:12px;width:100%;padding:10px;background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:10px;font-size:0.82rem;cursor:pointer;">
+    &#128270; Test GitHub Connection
+  </button>
 
   <div class="format-hint">
     <h3>&#9432; Required Excel Column Format</h3>
@@ -83,6 +87,14 @@
 <script>
 const PREFIX = 'roster_';
 
+// ── GitHub config ──────────────────────────────────────────────────────────────
+// Regenerate your PAT at: GitHub → Settings → Developer settings → Personal access tokens
+const GH_OWNER = 'soma16-ux';
+const GH_REPO  = 'shift-roster';
+const GH_BRANCH = 'main';
+const GH_PAT   = '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';
+const GH_FILE  = 'roster_data.json';
+
 function handleDrop(e){
   e.preventDefault();
   document.getElementById('dropZone').classList.remove('drag');
@@ -105,13 +117,35 @@ function parseFile(file){
       const key=PREFIX+payload.year+'-'+String(payload.month+1).padStart(2,'0');
       localStorage.setItem(key,JSON.stringify(payload));
       localStorage.setItem('shiftRosterActive',key);
-      showStatus('success','&#10003; Loaded '+payload.employees.length+' employees. Opening dashboard…');
-      setTimeout(()=>{ window.location.href='dashboard.html'; },900);
+      showStatus('loading','Pushing roster to GitHub…');
+      pushToGitHub(payload).then(()=>{
+        showStatus('success','&#10003; Pushed '+payload.employees.length+' employees to GitHub. Opening dashboard…');
+        setTimeout(()=>{ window.location.href='dashboard.html'; },1200);
+      }).catch(err=>{
+        showStatus('error','GitHub push failed: '+err.message+'. Dashboard will use local data.');
+        setTimeout(()=>{ window.location.href='dashboard.html'; },2000);
+      });
     } catch(err){
       showStatus('error','Failed to parse file: '+err.message);
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+async function pushToGitHub(payload){
+  const apiBase=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}`;
+  const headers={'Authorization':'Bearer '+GH_PAT,'Content-Type':'application/json','Accept':'application/vnd.github+json'};
+  // Check if file already exists to get its SHA (required for updates)
+  let sha=null;
+  try{
+    const check=await fetch(apiBase+'?ref='+GH_BRANCH,{headers});
+    if(check.ok){ const j=await check.json(); sha=j.sha||null; }
+  }catch{}
+  const content=btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2))));
+  const body={message:'chore: update roster '+payload.fileName+' ('+new Date().toISOString()+')',content,branch:GH_BRANCH};
+  if(sha) body.sha=sha;
+  const res=await fetch(apiBase,{method:'PUT',headers,body:JSON.stringify(body)});
+  if(!res.ok){ const e=await res.json(); throw new Error(e.message||res.status); }
 }
 
 function toDateKey(raw){
@@ -169,6 +203,23 @@ function showStatus(type,msg){
   const el=document.getElementById('status');
   el.className='status '+type;
   el.innerHTML=(type==='loading'?'<div class="spinner"></div>':'')+msg;
+}
+
+async function testGitHub(){
+  showStatus('loading','Testing GitHub connection…');
+  try{
+    const res=await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}`,{
+      headers:{'Authorization':'Bearer '+GH_PAT,'Accept':'application/vnd.github+json'}
+    });
+    const j=await res.json();
+    if(res.ok){
+      showStatus('success','&#10003; Connected! Repo: '+j.full_name+' | Push access: '+(j.permissions?.push?'YES':'NO'));
+    } else {
+      showStatus('error','GitHub error '+res.status+': '+j.message);
+    }
+  }catch(e){
+    showStatus('error','Network error: '+e.message);
+  }
 }
 
 function renderSaved(){
